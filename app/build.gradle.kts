@@ -29,6 +29,16 @@ android {
             )
         }
     }
+
+    applicationVariants.all {
+        val variant = this
+        variant.outputs
+            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
+            .forEach { output ->
+                val outputFileName = "location tracking_${variant.versionName}.apk"
+                output.outputFileName = outputFileName
+            }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -57,6 +67,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.appcompat)
+    implementation("androidx.compose.runtime:runtime-livedata")
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -64,11 +75,14 @@ dependencies {
 
     // --- Google Location & Maps ---
     implementation(libs.play.services.location)
-    implementation("com.google.android.gms:play-services-maps:18.1.0")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:maps-compose:4.4.0")
+    implementation("com.google.maps.android:maps-compose-utils:4.4.0")
 
     // --- Hilt (Dependency Injection) ---
     implementation("com.google.dagger:hilt-android:2.51.1")
     kapt("com.google.dagger:hilt-compiler:2.51.1")
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
     // --- Coroutines (for background work) ---
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
@@ -76,6 +90,7 @@ dependencies {
 
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("com.google.maps.android:android-maps-utils:3.4.0")
 
 
