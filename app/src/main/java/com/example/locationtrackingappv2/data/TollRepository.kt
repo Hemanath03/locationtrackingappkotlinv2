@@ -15,8 +15,8 @@ class TollRepository @Inject constructor() {
     private val tollPolylines = mutableListOf<List<Pair<Double, Double>>>()
 
     suspend fun loadTollData(context: Context) = withContext(Dispatchers.IO) {
-        val json = context.assets.open("toll_roads.json").bufferedReader().readText()
-        val layer = GeoJsonLayer(null, JSONObject(json))
+        //val json = context.assets.open("toll_roads.json").bufferedReader().readText()
+        //val layer = GeoJsonLayer(null, JSONObject(json))
 
         tollPolylines.clear()
 
