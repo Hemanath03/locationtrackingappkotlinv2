@@ -2,8 +2,8 @@ package com.example.locationtrackingappv2.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.locationtrackingappv2.data.LocationRepository
-import com.example.locationtrackingappv2.models.LocationData
+import com.example.locationtrackingappv2.data.repository.LocationRepository
+import com.example.locationtrackingappv2.domain.models.LocationData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

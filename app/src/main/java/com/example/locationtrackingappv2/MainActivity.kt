@@ -1,142 +1,73 @@
 package com.example.locationtrackingappv2
 
-
-import android.Manifest
-import android.os.Build
 import android.os.Bundle
-import android.widget.Button
-import android.widget.TextView
-import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.*
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
-import com.example.locationtrackingappv2.ui.viewmodels.MainViewModel
-import com.example.locationtrackingappv2.utils.PermissionManager
-import com.example.locationtrackingappv2.utils.ServiceController
+import com.example.locationtrackingappv2.controller.AutoCompleteController
+import com.example.locationtrackingappv2.controller.MapController
+import com.example.locationtrackingappv2.controller.TripNavigator
+import com.example.locationtrackingappv2.presentation.viewmodel.TripViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import com.google.android.gms.maps.GoogleMap
-import com.google.android.gms.maps.OnMapReadyCallback
-import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.Marker
-import com.google.android.gms.maps.model.MarkerOptions
-import com.google.android.gms.maps.model.Polyline
-import com.google.android.gms.maps.model.PolylineOptions
-import com.google.android.gms.maps.CameraUpdateFactory
+import kotlinx.coroutines.flow.collectLatest
 
 
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity(), OnMapReadyCallback  {
+class MainActivity : AppCompatActivity() {
 
-    private val viewModel: MainViewModel by viewModels()
+    private val vm: TripViewModel by viewModels()
 
-    private lateinit var txtLocation: TextView
-    private lateinit var btnStart: Button
-    private lateinit var btnStop: Button
-    private lateinit var map: GoogleMap
-    private var userMarker: Marker? = null
-    private var polyline: Polyline? = null
-    private val pathPoints = mutableListOf<LatLng>()
-
-
-    // Foreground permission launcher (request fine & coarse)
-    private val foregroundLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { perms ->
-        // If foreground granted, ask for background in Android 10+ if desired
-        if (PermissionManager.hasForegroundPermissions(this)) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Request background separately (best practice)
-                backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-            }
-        }
-    }
-
-    private val backgroundLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        // nothing extra needed; user might need to go to settings if denied permanently
-    }
+    private lateinit var mapController: MapController
+    private lateinit var autoController: AutoCompleteController
+    private lateinit var navigator: TripNavigator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val mapFragment = supportFragmentManager
-            .findFragmentById(R.id.mapFragment) as SupportMapFragment
-        mapFragment.getMapAsync(this)
+        mapController = MapController(this)
+        autoController = AutoCompleteController(this, vm)
+        navigator = TripNavigator(this)
 
-
-        txtLocation = findViewById(R.id.txtLocation)
-        btnStart = findViewById(R.id.btnStart)
-        btnStop = findViewById(R.id.btnStop)
-
-        observeViewModel()
-
-        btnStart.setOnClickListener {
-            if (!PermissionManager.hasForegroundPermissions(this)) {
-                PermissionManager.requestForegroundPermissions(foregroundLauncher)
-                return@setOnClickListener
-            }
-            // optionally ensure background permission before starting (if you need)
-            ServiceController.startService(this)
-        }
-
-        btnStop.setOnClickListener {
-            ServiceController.stopService(this)
-        }
+        setupObservers()
+        setupListeners()
     }
 
-    override fun onMapReady(googleMap: GoogleMap) {
-        map = googleMap
-        map.uiSettings.isZoomControlsEnabled = true
-    }
-
-
-    private fun observeViewModel() {
+    private fun setupObservers() {
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.locationState.collect { data ->
-                    if (data != null) {
-                        txtLocation.text = "Lat: ${data.latitude}\nLng: ${data.longitude}\nSpeed: ${"%.2f".format(data.speed)} m/s"
-                        if (data.isTollRoad) {
-                            txtLocation.append("\n🚧 TOLL ROAD DETECTED!")
-                        }
+            vm.route.collect { route ->
+                if (route != null) mapController.drawRoute(route.polylinePoints)
+            }
+        }
 
-                        updateMap(data.latitude, data.longitude)
-                    } else {
-                        txtLocation.text = "Location not available"
-                    }
-                }
+        lifecycleScope.launch {
+            vm.predictions.collect { predictions ->
+                autoController.showPredictions(predictions)
+            }
+        }
+
+        lifecycleScope.launch {
+            vm.events.collect { event -> autoController.showEvent(event) }
+        }
+    }
+
+    private fun setupListeners() {
+        autoController.onFromTextChanged = { vm.onFromQuery(it) }
+        autoController.onToTextChanged   = { vm.onToQuery(it) }
+
+        autoController.onFromSelected = { vm.selectPrediction(it, true) }
+        autoController.onToSelected   = { vm.selectPrediction(it, false) }
+
+        findViewById<Button>(R.id.btnCompute).setOnClickListener {
+            vm.computeRoute()
+        }
+
+        findViewById<Button>(R.id.btnStartTrip).setOnClickListener {
+            vm.route.value?.polylinePoints?.let { points ->
+                navigator.startTrip(points)
             }
         }
     }
-    private fun updateMap(lat: Double, lng: Double) {
-        val newPoint = LatLng(lat, lng)
-
-        // Move camera
-        map.animateCamera(CameraUpdateFactory.newLatLngZoom(newPoint, 16f))
-
-        // Update marker
-        if (userMarker == null) {
-            userMarker = map.addMarker(MarkerOptions().position(newPoint).title("You"))
-        } else {
-            userMarker!!.position = newPoint
-        }
-
-        // Update polyline path
-        pathPoints.add(newPoint)
-
-        if (polyline == null) {
-            polyline = map.addPolyline(
-                PolylineOptions().addAll(pathPoints)
-            )
-        } else {
-            polyline!!.points = pathPoints
-        }
-    }
-
 }

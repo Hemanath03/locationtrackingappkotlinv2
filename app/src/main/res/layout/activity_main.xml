@@ -1,34 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/txtLocation"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Location not available"
-        android:padding="16dp" />
+    <!-- FROM input -->
+    <EditText
+        android:id="@+id/etFrom"
+        android:hint="From"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:padding="12dp"
+        android:background="@android:color/white"
+        android:elevation="4dp" />
 
+    <!-- TO input -->
+    <EditText
+        android:id="@+id/etTo"
+        android:hint="To"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:padding="12dp"
+        android:layout_below="@id/etFrom"
+        android:background="@android:color/white"
+        android:elevation="4dp" />
+
+    <!-- Compute Route -->
     <Button
-        android:id="@+id/btnStart"
-        android:layout_width="wrap_content"
+        android:id="@+id/btnCompute"
+        android:text="Compute Route"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Start Tracking" />
+        android:layout_below="@id/etTo"
+        android:layout_marginTop="6dp" />
 
+    <!-- Start Trip -->
     <Button
-        android:id="@+id/btnStop"
-        android:layout_width="wrap_content"
+        android:id="@+id/btnStartTrip"
+        android:text="Start Trip"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Stop Tracking" />
+        android:layout_below="@id/btnCompute"
+        android:layout_marginTop="6dp" />
 
-    <!-- Google Maps Fragment -->
+    <!-- Map Fragment -->
     <fragment
         android:id="@+id/mapFragment"
         android:name="com.google.android.gms.maps.SupportMapFragment"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_height="match_parent"
+        android:layout_below="@id/btnStartTrip"/>
 
-</LinearLayout>
+</RelativeLayout>

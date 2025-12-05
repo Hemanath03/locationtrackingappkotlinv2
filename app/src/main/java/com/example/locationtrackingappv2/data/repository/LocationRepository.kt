@@ -1,6 +1,6 @@
-package com.example.locationtrackingappv2.data
+package com.example.locationtrackingappv2.data.repository
 
-import com.example.locationtrackingappv2.models.LocationData
+import com.example.locationtrackingappv2.domain.models.LocationData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
@@ -17,4 +17,3 @@ class LocationRepository @Inject constructor() {
     }
 
 }
-

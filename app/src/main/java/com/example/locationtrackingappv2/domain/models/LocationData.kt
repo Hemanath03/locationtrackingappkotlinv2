@@ -1,4 +1,4 @@
-package com.example.locationtrackingappv2.models
+package com.example.locationtrackingappv2.domain.models
 
 data class LocationData(
     val latitude: Double,
