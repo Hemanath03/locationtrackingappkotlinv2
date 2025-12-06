@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:name=".MyApplication"
+        android:name=".app.MyApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -20,7 +20,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Locationtrackingappv2">
         <activity
-            android:name=".MainActivity"
+            android:name=".presentation.TrackingActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Locationtrackingappv2">
@@ -35,7 +35,7 @@
             android:value="AIzaSyDOjbYNl-3m0fgEdcVpzDse-a3mLmR8uio" />
 
         <service
-            android:name=".services.LocationService"
+            android:name=".data.service.LocationService"
             android:foregroundServiceType="location"
             android:exported="false" />
     </application>

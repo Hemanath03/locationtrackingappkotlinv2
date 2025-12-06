@@ -98,8 +98,9 @@ dependencies {
     // ------------------------------------------------------------
     implementation(libs.play.services.location)
     implementation("com.google.android.gms:play-services-maps:18.1.0")
-    implementation("com.google.android.libraries.places:places:3.3.0")
+    implementation("com.google.android.libraries.places:places:3.5.0")
     implementation("com.google.maps.android:android-maps-utils:3.4.0")
+    implementation("com.google.maps.android:maps-compose:2.14.0")
 
     // ------------------------------------------------------------
     // Networking: Retrofit + Moshi + OkHttp
@@ -114,6 +115,8 @@ dependencies {
     // ------------------------------------------------------------
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
 
     // ------------------------------------------------------------
     // Lifecycle (ViewModel scope)

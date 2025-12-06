@@ -1,11 +1,9 @@
 package com.example.locationtrackingappv2.domain.repository
 
-import com.example.locationtrackingappv2.domain.models.PlaceLatLng
-import com.example.locationtrackingappv2.domain.models.Prediction
-import com.example.locationtrackingappv2.domain.models.RouteInfo
+import com.example.locationtrackingappv2.domain.entity.LocationPoint
+import com.example.locationtrackingappv2.domain.entity.PlaceSuggestion
 
 interface GoogleMapsRepository {
-    suspend fun getPlaceSuggestions(query: String, sessionToken: String): List<Prediction>
-    suspend fun getPlaceCoordinates(placeId: String, sessionToken: String): Prediction?
-    suspend fun computeRoutes(origin: PlaceLatLng, destination: PlaceLatLng): RouteInfo
+    suspend fun getPlaceSuggestions(query: String): List<PlaceSuggestion>
+    suspend fun getPlaceCoordinates(placeId: String): LocationPoint
 }
