@@ -78,7 +78,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.11.0")
     implementation("com.google.android.material:material:1.12.0")
 
-    // ------------------------------------------------------------
+    // ---------- --------------------------------------------------
     // Compose UI
     // ------------------------------------------------------------
     implementation(libs.androidx.activity.compose)

@@ -7,4 +7,5 @@ interface LocationRepository {
     fun locationUpdates(): Flow<LocationPoint>
     suspend fun startTracking()
     suspend fun stopTracking()
+    fun getLastKnownPoint(): LocationPoint?
 }

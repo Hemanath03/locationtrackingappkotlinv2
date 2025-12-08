@@ -26,13 +26,12 @@
             android:theme="@style/Theme.Locationtrackingappv2">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyDOjbYNl-3m0fgEdcVpzDse-a3mLmR8uio" />
+            android:value="AIzaSyDVGX2ePBPUqcC3Zx8DojguBWC2LdglKZc" />
 
         <service
             android:name=".data.service.LocationService"

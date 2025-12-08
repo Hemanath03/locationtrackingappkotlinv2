@@ -19,6 +19,7 @@ import javax.inject.Singleton
 class LocationRepositoryImpl @Inject constructor(
 ) : LocationRepository {
 
+    private var lastPoint: LocationPoint? = null
     private val _locationFlow = MutableSharedFlow<LocationPoint>(replay = 1)
     override fun locationUpdates(): Flow<LocationPoint> = _locationFlow.asSharedFlow()
 
@@ -31,8 +32,11 @@ class LocationRepositoryImpl @Inject constructor(
 
     // Optionally expose a quick non-suspending publish (for service convenience)
     fun publishLocationNonBlocking(point: LocationPoint) {
+        lastPoint = point
         scope.launch { _locationFlow.emit(point) }
     }
+
+    override fun getLastKnownPoint(): LocationPoint? = lastPoint
 
     // start/stop are intended to instruct the service; we keep as no-op by default.
     override suspend fun startTracking() { /* service handled externally */ }

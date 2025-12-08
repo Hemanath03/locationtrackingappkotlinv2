@@ -2,7 +2,10 @@ package com.example.locationtrackingappv2.di
 
 import android.content.Context
 import com.example.locationtrackingappv2.BuildConfig
+import com.example.locationtrackingappv2.data.remote.DirectionsApi
+import com.example.locationtrackingappv2.data.repository.DirectionsRepositoryImpl
 import com.example.locationtrackingappv2.data.repository.GoogleMapsRepositoryImpl
+import com.example.locationtrackingappv2.domain.repository.DirectionsRepository
 import com.example.locationtrackingappv2.domain.repository.GoogleMapsRepository
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.net.PlacesClient
@@ -11,6 +14,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
 import javax.inject.Singleton
 
 @Module
@@ -30,4 +35,24 @@ object GoogleMapsModule {
     @Provides
     @Singleton
     fun provideGoogleMapsRepository(impl: GoogleMapsRepositoryImpl): GoogleMapsRepository = impl
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(): Retrofit =
+        Retrofit.Builder()
+            .baseUrl("https://routes.googleapis.com/")
+            .addConverterFactory(MoshiConverterFactory.create())
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideDirectionsApi(retrofit: Retrofit): DirectionsApi =
+        retrofit.create(DirectionsApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDirectionsRepository(api: DirectionsApi): DirectionsRepository =
+        DirectionsRepositoryImpl(api)
+
+
 }
