@@ -1,3 +1,6 @@
+// ==========================
+// TrackingViewModel.kt (Full Updated with Snap-to-Road + FullRoute + RemainingRoute)
+// ==========================
 package com.example.locationtrackingappv2.presentation.viewmodel
 
 import android.annotation.SuppressLint
@@ -14,232 +17,270 @@ import com.example.locationtrackingappv2.domain.usecase.ObserveLocationUseCase
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
-
-data class PlaceSuggestionUi(
-    val placeId: String,
-    val description: String
-)
+import com.example.locationtrackingappv2.data.repository.SnapToRoadRepository
+import com.example.locationtrackingappv2.domain.entity.PlaceSuggestion
+import dagger.hilt.android.lifecycle.HiltViewModel
 
 @HiltViewModel
 class TrackingViewModel @Inject constructor(
     observeLocationUseCase: ObserveLocationUseCase,
     private val observeStats: ObserveLocationStatsUseCase,
     private val placesRepo: GoogleMapsRepository,
-    private val directionsRepository: DirectionsRepository
+    private val directionsRepository: DirectionsRepository,
+    private val snapRepo: SnapToRoadRepository
 ) : ViewModel() {
 
-    // -------------------------
-    // POINTS (Immutable List)
-    // -------------------------
+    private val TAG = "TrackingViewModel"
+
+    // Live snapped GPS location
+    private val _currentLocation = MutableStateFlow<LocationPoint?>(null)
+    val currentLocation = _currentLocation.asStateFlow()
+
+    // Driver path when meter running
     private val _points = MutableStateFlow<List<LocationPoint>>(emptyList())
-    val points: StateFlow<List<LocationPoint>> = _points.asStateFlow()
-private  val Tag :String = "TrackingViewModel"
-    // -------------------------
-    // STATS (Speed, Distance, etc.)
-    // -------------------------
+    val points = _points.asStateFlow()
+
+    // Stats
     private val _stats = MutableStateFlow<LocationStats?>(null)
-    val stats: StateFlow<LocationStats?> = _stats.asStateFlow()
+    val stats = _stats.asStateFlow()
 
-    // -------------------------
-    // REMAINING DISTANCE
-    // -------------------------
-    private val _remainingDistanceMeters = MutableStateFlow<Double?>(null)
-    val remainingDistanceMeters: StateFlow<Double?> = _remainingDistanceMeters.asStateFlow()
+    // Meter
+    private val _meterRunning = MutableStateFlow(false)
+    val meterRunning = _meterRunning.asStateFlow()
 
-    // -------------------------
-    // AUTOCOMPLETE
-    // -------------------------
-    private val _originSuggestions = MutableStateFlow<List<PlaceSuggestionUi>>(emptyList())
-    val originSuggestions = _originSuggestions.asStateFlow()
+    private val _fare = MutableStateFlow(0.0)
+    val fare = _fare.asStateFlow()
 
-    private val _destSuggestions = MutableStateFlow<List<PlaceSuggestionUi>>(emptyList())
+    // Destination
+    private val _destination = MutableStateFlow<LocationPoint?>(null)
+    val destination = _destination.asStateFlow()
+
+    private val _destSuggestions = MutableStateFlow<List<PlaceSuggestion>>(emptyList())
     val destSuggestions = _destSuggestions.asStateFlow()
 
-    // -------------------------
-    // SELECTED POSITIONS
-    // -------------------------
-    private val _originPoint = MutableStateFlow<LocationPoint?>(null)
-    val originPoint = _originPoint.asStateFlow()
+    // Full route (always intact)
+    private val _fullRoute = MutableStateFlow<List<LatLng>>(emptyList())
+    val fullRoute = _fullRoute.asStateFlow()
 
-    private val _destPoint = MutableStateFlow<LocationPoint?>(null)
-    val destPoint = _destPoint.asStateFlow()
+    // Remaining route (trimmed visually)
+    private val _remainingRoute = MutableStateFlow<List<LatLng>>(emptyList())
+    val remainingRoute = _remainingRoute.asStateFlow()
 
-    private val _routePoints = MutableStateFlow<List<LatLng>>(emptyList())
-    val routePoints = _routePoints.asStateFlow()
+    private val _routeDistance = MutableStateFlow<Int?>(null)
+    val routeDistance = _routeDistance.asStateFlow()
 
-    private val _routeDistanceMeters = MutableStateFlow<Int?>(null)
-    val routeDistanceMeters = _routeDistanceMeters.asStateFlow()
+    private val _routeDuration = MutableStateFlow<Int?>(null)
+    val routeDuration = _routeDuration.asStateFlow()
 
-    private val _routeDurationSeconds = MutableStateFlow<Int?>(null)
-    val routeDurationSeconds = _routeDurationSeconds.asStateFlow()
+    private val _remainingDistance = MutableStateFlow<Double?>(null)
+    val remainingDistance = _remainingDistance.asStateFlow()
 
+    private val _estimatedFare = MutableStateFlow<Double?>(null)
+    val estimatedFare = _estimatedFare.asStateFlow()
 
 
     init {
-        // Collect raw GPS locations → polyline + distance update
+        // GPS updates
         viewModelScope.launch {
-            observeLocationUseCase().collect { lp ->
-                _points.value = _points.value + lp
-                updateRemainingDistance(lp)
+            observeLocationUseCase().collect { rawLp ->
+
+                // Snap to road
+                val snapped = snapRepo.snap(rawLp)
+                _currentLocation.value = snapped
+
+                if (_meterRunning.value) {
+                    _points.value = _points.value + snapped
+                }
+
+                // Trim route visually
+                trimRemainingRouteToCurrentPosition(LatLng(snapped.lat, snapped.lng))
+
+                // Update remaining distance
+                updateRemainingDistance(snapped)
             }
         }
 
-        // Collect stats stream → speed & total distance
+        // Stats updates
         viewModelScope.launch {
             observeStats().collect { s ->
                 _stats.value = s
+                if (_meterRunning.value) updateFare(s)
             }
         }
     }
 
-    fun loadRoute() {
-        val o = originPoint.value ?: return
-        val d = destPoint.value ?: return
-        Log.d(Tag, "Origin CURRENT = ${originPoint.value}")
-        Log.d(Tag, "Dest SELECTED  = ${destPoint.value}")
-
-        viewModelScope.launch {
-            val (points, distance, duration) =
-                directionsRepository.getRoutePoints(o, d)
-
-            _routePoints.value = points
-            _routeDistanceMeters.value = distance
-            _routeDurationSeconds.value = duration
-        }
+    // =============================
+    // Meter
+    // =============================
+    fun startMeter() {
+        _points.value = emptyList()
+        _fare.value = 0.0
+        _meterRunning.value = true
     }
-    fun clearOrigin() {
-        _originPoint.value = null
-        _routePoints.value = emptyList()
+
+    fun stopMeter() {
+        _meterRunning.value = false
+    }
+
+    private fun updateFare(stats: LocationStats) {
+        val km = stats.totalDistanceMeters / 1000.0
+        val speed = stats.instantSpeedMps * 3.6
+        val rate = if (speed > 25.0) 3.0 else 2.0
+        _fare.value = km * rate
+    }
+
+    // =============================
+    // Places autocomplete
+    // =============================
+
+    fun searchPlaces(q: String) {
+        if (q.isBlank()) {
+            _destSuggestions.value = emptyList()
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val preds = placesRepo.getPlaceSuggestions(q)
+            _destSuggestions.value = preds.map { PlaceSuggestion(it.placeId, it.description) }
+        }
     }
 
     fun clearDestination() {
-        _destPoint.value = null
-        _routePoints.value = emptyList()
+        _destination.value = null
+        _destSuggestions.value = emptyList()
+        _fullRoute.value = emptyList()
+        _remainingRoute.value = emptyList()
+        _routeDistance.value = null
+        _routeDuration.value = null
+        _estimatedFare.value = null
+        _remainingDistance.value = null
     }
 
+    fun onPlaceSelected(s: PlaceSuggestion, ctx: Context) {
+        viewModelScope.launch {
+            val coords = placesRepo.getPlaceCoordinates(s.placeId)
+            _destination.value = coords
 
-    // ----------------------------------------------------------
-    // REMAINING DISTANCE CALCULATION
-    // ----------------------------------------------------------
-    fun updateRemainingDistance(current: LocationPoint?) {
-        val dest = destPoint.value ?: return
-        current ?: return
-
-        val result = FloatArray(1)
-        android.location.Location.distanceBetween(
-            current.lat, current.lng,
-            dest.lat, dest.lng,
-            result
-        )
-        _remainingDistanceMeters.value = result[0].toDouble()
+            val origin = _currentLocation.value ?: getImmediateOriginFallback(ctx)
+            if (origin != null) loadRoute(origin, coords)
+        }
     }
 
-    // ----------------------------------------------------------
-    // PLACE AUTOCOMPLETE
-    // ----------------------------------------------------------
-    fun searchPlaces(q: String, isOrigin: Boolean) {
-        if (q.isBlank()) {
-            if (isOrigin) _originSuggestions.value = emptyList()
-            else _destSuggestions.value = emptyList()
+    @SuppressLint("MissingPermission")
+    private suspend fun getImmediateOriginFallback(ctx: Context): LocationPoint? {
+        return try {
+            val fused = LocationServices.getFusedLocationProviderClient(ctx)
+
+            val fresh = fused.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+            if (fresh != null) return LocationPoint(fresh.latitude, fresh.longitude, System.currentTimeMillis())
+
+            val last = fused.lastLocation.await()
+            if (last != null) return LocationPoint(last.latitude, last.longitude, System.currentTimeMillis())
+
+            null
+        } catch (e: Exception) { null }
+    }
+
+    // =============================
+    // Route loading
+    // =============================
+    fun loadRoute(origin: LocationPoint, dest: LocationPoint) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val (poly, distance, duration) = directionsRepository.getRoutePoints(origin, dest)
+
+            if (poly.isNotEmpty()) {
+                _fullRoute.value = poly.toList()       // store full
+                _remainingRoute.value = poly.toList()  // initial remaining
+                _routeDistance.value = distance
+                _routeDuration.value = duration
+                _estimatedFare.value = (distance / 1000.0) * 3.0
+            }
+        }
+    }
+
+    // =============================
+    // Trim remaining route
+    // =============================
+    private fun trimRemainingRouteToCurrentPosition(current: LatLng, threshold: Float = 30f) {
+        val route = _remainingRoute.value
+        if (route.isEmpty()) return
+
+        var closestIndex = 0
+        var minDist = Float.MAX_VALUE
+        val results = FloatArray(1)
+
+        for (i in route.indices) {
+            android.location.Location.distanceBetween(
+                current.latitude, current.longitude,
+                route[i].latitude, route[i].longitude,
+                results
+            )
+            if (results[0] < minDist) {
+                minDist = results[0]
+                closestIndex = i
+            }
+        }
+
+        if (minDist > threshold) return
+
+        val startIndex = (closestIndex - 1).coerceAtLeast(0)
+
+        if (startIndex >= route.size - 1) {
+            _remainingRoute.value = emptyList()
+            _remainingDistance.value = 0.0
             return
         }
 
-        viewModelScope.launch {
-            try {
-                val preds = placesRepo.getPlaceSuggestions(q)
-                val uiList = preds.map { PlaceSuggestionUi(it.placeId, it.description) }
-                if (isOrigin) _originSuggestions.value = uiList
-                else _destSuggestions.value = uiList
-            } catch (_: Exception) {
-                if (isOrigin) _originSuggestions.value = emptyList()
-                else _destSuggestions.value = emptyList()
+        val trimmed = route.drop(startIndex)
+        _remainingRoute.value = trimmed
+    }
+
+    // =============================
+    // Remaining distance
+    // =============================
+    private fun updateRemainingDistance(current: LocationPoint?) {
+        current ?: return
+        val route = _remainingRoute.value
+        if (route.isEmpty()) {
+            _remainingDistance.value = null
+            return
+        }
+
+        val cur = LatLng(current.lat, current.lng)
+        var closest = 0
+        var min = Float.MAX_VALUE
+        val f = FloatArray(1)
+
+        for (i in route.indices) {
+            android.location.Location.distanceBetween(
+                cur.latitude, cur.longitude,
+                route[i].latitude, route[i].longitude,
+                f
+            )
+            if (f[0] < min) {
+                min = f[0]
+                closest = i
             }
         }
-    }
 
-    // ----------------------------------------------------------
-    // PLACE SELECTION
-    // ----------------------------------------------------------
-    fun onPlaceSelected(s: PlaceSuggestionUi, isOrigin: Boolean) {
-        viewModelScope.launch {
-
-            val coords = placesRepo.getPlaceCoordinates(s.placeId)
-
-            if (isOrigin) {
-                _originPoint.value = coords
-
-                Log.d(Tag, "Origin SELECTED = ${originPoint.value}")
-                Log.d(Tag, "Dest CURRENT     = ${destPoint.value}")
-
-                // If destination is already chosen → load route now
-                if (destPoint.value != null) {
-                    loadRoute()
-                }
-
-            } else {
-                _destPoint.value = coords
-
-                Log.d(Tag, "Origin CURRENT = ${originPoint.value}")
-                Log.d(Tag, "Dest SELECTED  = ${destPoint.value}")
-
-                // Always load route after selecting destination
-                loadRoute()
-            }
-        }
-    }
-
-
-    // ----------------------------------------------------------
-    // USE CURRENT LOCATION AS ORIGIN
-    // ----------------------------------------------------------
-    fun setOriginFromCurrentLocation(context: Context) {
-        viewModelScope.launch {
-            val loc = getSafeCurrentLocation(context)
-            loc ?: return@launch
-
-            _originPoint.value = loc
-
-            if (destPoint.value != null) {
-                loadRoute()
-            }
-        }
-    }
-
-
-    @SuppressLint("MissingPermission")
-    suspend fun getSafeCurrentLocation(context: Context): LocationPoint? {
-        val fused = LocationServices.getFusedLocationProviderClient(context)
-
-        // 1️⃣ Try fresh high-accuracy fix
-        val fresh = fused.getCurrentLocation(
-            Priority.PRIORITY_HIGH_ACCURACY,
-            null
-        ).await()
-
-        if (fresh != null) {
-            return LocationPoint(fresh.latitude, fresh.longitude, System.currentTimeMillis())
+        var total = 0.0
+        for (i in closest until route.size - 1) {
+            android.location.Location.distanceBetween(
+                route[i].latitude, route[i].longitude,
+                route[i+1].latitude, route[i+1].longitude,
+                f
+            )
+            total += f[0]
         }
 
-        // 2️⃣ Try last known cached location
-        val last = fused.lastLocation.await()
-        if (last != null) {
-            return LocationPoint(last.latitude, last.longitude, System.currentTimeMillis())
-        }
-
-        return null
-    }
-
-
-    // ----------------------------------------------------------
-    // CLEAR ROUTE
-    // ----------------------------------------------------------
-    fun clearRoute() {
-        _points.value = emptyList()
-        _remainingDistanceMeters.value = null
+        _remainingDistance.value = total
     }
 }
+

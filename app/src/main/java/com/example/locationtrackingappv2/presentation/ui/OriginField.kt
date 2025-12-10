@@ -16,14 +16,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.locationtrackingappv2.presentation.viewmodel.PlaceSuggestionUi
+import com.example.locationtrackingappv2.domain.entity.PlaceSuggestion
 
 @Composable
 fun OriginField(
     value: String,
     onValueChange: (String) -> Unit,
-    suggestions: List<PlaceSuggestionUi>,
-    onSuggestionSelected: (PlaceSuggestionUi) -> Unit,
+    suggestions: List<PlaceSuggestion>,
+    onSuggestionSelected: (PlaceSuggestion) -> Unit,
     onUseCurrentLocation: () -> Unit,
     onClear: () -> Unit
 ) {

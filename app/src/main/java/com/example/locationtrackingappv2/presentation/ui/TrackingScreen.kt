@@ -1,5 +1,8 @@
+
+// File: TrackingScreen.kt
 package com.example.locationtrackingappv2.presentation.ui
 
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,64 +17,36 @@ fun TrackingScreen(
     onStartClick: () -> Unit,
     onStopClick: () -> Unit
 ) {
-    val context = LocalContext.current
+    val ctx = LocalContext.current
+
     val points by viewModel.points.collectAsState()
     val stats by viewModel.stats.collectAsState()
-
-    val originPoint by viewModel.originPoint.collectAsState()
-    val destPoint by viewModel.destPoint.collectAsState()
-
-    val originSuggestions by viewModel.originSuggestions.collectAsState()
+    val dest by viewModel.destination.collectAsState()
     val destSuggestions by viewModel.destSuggestions.collectAsState()
+    val fullRoute by viewModel.fullRoute.collectAsState()
+    val remainingRoute by viewModel.remainingRoute.collectAsState()
 
-    val remaining by viewModel.remainingDistanceMeters.collectAsState()
+    val remaining by viewModel.remainingDistance.collectAsState()
+    val fare by viewModel.fare.collectAsState()
+    val estFare by viewModel.estimatedFare.collectAsState()
+    val running by viewModel.meterRunning.collectAsState()
 
-    var originText by remember { mutableStateOf("") }
     var destText by remember { mutableStateOf("") }
 
-    val routePoints by viewModel.routePoints.collectAsState()
-
-    val routeDistance by viewModel.routeDistanceMeters.collectAsState()
-    val routeDuration by viewModel.routeDurationSeconds.collectAsState()
-
     Column(Modifier.fillMaxSize().padding(12.dp)) {
-
-
-        OriginField(
-            value = originText,
-            onValueChange = {
-                originText = it
-                viewModel.searchPlaces(it, true)
-            },
-            suggestions = originSuggestions,
-            onSuggestionSelected = { s ->
-                originText = s.description
-                viewModel.onPlaceSelected(s, true)
-            },
-            onUseCurrentLocation = {
-                originText = ""
-                viewModel.setOriginFromCurrentLocation(context =context )
-            },
-                    onClear = {
-                originText = ""
-                viewModel.clearOrigin()
-            }
-        )
-
-        Spacer(Modifier.height(8.dp))
-
         AutocompleteField(
             value = destText,
             onValueChange = {
                 destText = it
-                viewModel.searchPlaces(it, false)
+                viewModel.searchPlaces(it)
             },
             suggestions = destSuggestions,
             onSuggestionSelected = { s ->
                 destText = s.description
-                viewModel.onPlaceSelected(s, false)
+                // pass context so ViewModel can attempt immediate GPS fallback
+                viewModel.onPlaceSelected(s, ctx)
             },
-            placeholder = "Destination",
+            placeholder = "Enter Destination (Optional)",
             onClear = {
                 destText = ""
                 viewModel.clearDestination()
@@ -80,52 +55,48 @@ fun TrackingScreen(
 
         Spacer(Modifier.height(8.dp))
 
-
         TrackingMap(
             points = points,
-            origin = originPoint,
-            destination = destPoint,
-            route = routePoints,
+            destination = dest,
+            fullRoute = fullRoute,
+            remainingRoute = remainingRoute,
             modifier = Modifier.weight(1f)
         )
 
-        Spacer(Modifier.height(8.dp))
+
+        Spacer(Modifier.height(12.dp))
 
         Row(Modifier.fillMaxWidth()) {
-            Button(onClick = onStartClick, modifier = Modifier.weight(1f)) {
-                Text("Start")
-            }
+            Button(
+                modifier = Modifier.weight(1f),
+                enabled = !running,
+                onClick = onStartClick
+            ) { Text("Start Meter") }
+
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onStopClick, modifier = Modifier.weight(1f)) {
-                Text("Stop")
-            }
+
+            Button(
+                modifier = Modifier.weight(1f),
+                enabled = running,
+                onClick = onStopClick
+            ) { Text("Stop Meter") }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
 
         stats?.let {
-            Text("Distance: %.2f km".format(it.totalDistanceMeters / 1000))
+            Text("Distance: %.2f km".format(it.totalDistanceMeters / 1000.0))
             Text("Speed: %.1f km/h".format(it.instantSpeedMps * 3.6))
         }
+
+        Text("Fare: $%.2f".format(fare))
+
         remaining?.let {
-            if (destPoint != null) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Remaining Distance: %.2f km".format(it / 1000),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
-        routeDistance?.let {
-            Text("Route Distance: %.2f km".format(it / 1000f))
+            if (dest != null) Text("Remaining: %.2f km".format(it / 1000.0))
         }
 
-        routeDuration?.let {
-            val minutes = it / 60
-            val hours = minutes / 60
-            val mins = minutes % 60
-
-            Text("ETA: ${hours}h ${mins}m")
+        estFare?.let {
+            Text("Estimated Fare: $%.2f".format(it))
         }
     }
 }

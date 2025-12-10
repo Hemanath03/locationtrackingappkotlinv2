@@ -3,6 +3,7 @@ package com.example.locationtrackingappv2.di
 import android.content.Context
 import com.example.locationtrackingappv2.BuildConfig
 import com.example.locationtrackingappv2.data.remote.DirectionsApi
+import com.example.locationtrackingappv2.data.remote.RoadsApi
 import com.example.locationtrackingappv2.data.repository.DirectionsRepositoryImpl
 import com.example.locationtrackingappv2.data.repository.GoogleMapsRepositoryImpl
 import com.example.locationtrackingappv2.domain.repository.DirectionsRepository
@@ -43,6 +44,17 @@ object GoogleMapsModule {
             .baseUrl("https://routes.googleapis.com/")
             .addConverterFactory(MoshiConverterFactory.create())
             .build()
+
+    @Provides
+    @Singleton
+    fun provideRoadsApi(): RoadsApi {
+        return Retrofit.Builder()
+            .baseUrl("https://roads.googleapis.com/")
+            .addConverterFactory(MoshiConverterFactory.create())
+            .build()
+            .create(RoadsApi::class.java)
+    }
+
 
     @Provides
     @Singleton
