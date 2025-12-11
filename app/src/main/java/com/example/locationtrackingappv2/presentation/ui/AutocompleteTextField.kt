@@ -1,4 +1,3 @@
-
 // File: AutocompleteField.kt
 package com.example.locationtrackingappv2.presentation.ui
 
@@ -9,12 +8,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.locationtrackingappv2.domain.entity.PlaceSuggestion
-import com.example.locationtrackingappv2.presentation.viewmodel.TrackingViewModel
 
 @Composable
 fun AutocompleteField(
@@ -37,7 +38,7 @@ fun AutocompleteField(
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text(placeholder) },
             trailingIcon = {
-                if (!value.isNullOrBlank()) {
+                if (value.isNotBlank()) {
                     IconButton(onClick = { onClear?.invoke(); expanded = false }) {
                         Icon(Icons.Default.Close, contentDescription = "Clear")
                     }

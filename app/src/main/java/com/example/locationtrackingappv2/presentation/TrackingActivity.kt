@@ -1,6 +1,7 @@
 package com.example.locationtrackingappv2.presentation
 
 
+import TrackingMainScreen
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -8,7 +9,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import com.example.locationtrackingappv2.data.service.LocationService
-import com.example.locationtrackingappv2.presentation.ui.TrackingScreen
 import com.example.locationtrackingappv2.presentation.viewmodel.TrackingViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import android.util.Log
@@ -48,16 +48,8 @@ class TrackingActivity : ComponentActivity() {
 
 
         setContent {
-            TrackingScreen(
-                viewModel = vm,
-                onStartClick = {
-// Start meter only; service already running
-                    vm.startMeter()
-                },
-                onStopClick = {
-                    vm.stopMeter()
-                }
-            )
+            TrackingMainScreen(vm)
         }
+
     }
 }

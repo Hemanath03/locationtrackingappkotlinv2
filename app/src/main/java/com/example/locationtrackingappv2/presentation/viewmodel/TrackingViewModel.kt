@@ -40,6 +40,14 @@ class TrackingViewModel @Inject constructor(
 
     private val TAG = "TrackingViewModel"
 
+    // Add this at top of ViewModel:
+    private val _fare = MutableStateFlow(0.0)
+    val fare = _fare.asStateFlow()
+
+    private val _estimatedFare = MutableStateFlow<Double?>(null)
+    val estimatedFare = _estimatedFare.asStateFlow()
+
+
     // Live snapped GPS location
     private val _currentLocation = MutableStateFlow<LocationPoint?>(null)
     val currentLocation = _currentLocation.asStateFlow()
@@ -56,8 +64,6 @@ class TrackingViewModel @Inject constructor(
     private val _meterRunning = MutableStateFlow(false)
     val meterRunning = _meterRunning.asStateFlow()
 
-    private val _fare = MutableStateFlow(0.0)
-    val fare = _fare.asStateFlow()
 
     // Destination
     private val _destination = MutableStateFlow<LocationPoint?>(null)
@@ -82,9 +88,6 @@ class TrackingViewModel @Inject constructor(
 
     private val _remainingDistance = MutableStateFlow<Double?>(null)
     val remainingDistance = _remainingDistance.asStateFlow()
-
-    private val _estimatedFare = MutableStateFlow<Double?>(null)
-    val estimatedFare = _estimatedFare.asStateFlow()
 
 
     init {
