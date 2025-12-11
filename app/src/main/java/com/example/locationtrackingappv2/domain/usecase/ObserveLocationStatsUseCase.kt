@@ -33,7 +33,7 @@ class ObserveLocationStatsUseCase @Inject constructor(
             val elapsedSeconds = ((point.timestamp - (startTime ?: point.timestamp)) / 1000.0).coerceAtLeast(0.0)
             val avgSpeed = if (elapsedSeconds > 0.0) totalDistance / elapsedSeconds else 0.0
 
-            emit(LocationStats(last = point, totalDistanceMeters = totalDistance, instantSpeedMps = instantSpeed, averageSpeedMps = avgSpeed))
+            emit(LocationStats(last = point, totalDistanceMeters = totalDistance, instantSpeedMps = instantSpeed, averageSpeedMps = avgSpeed, durationSeconds = elapsedSeconds.toInt()))
             prev = point
         }
     }

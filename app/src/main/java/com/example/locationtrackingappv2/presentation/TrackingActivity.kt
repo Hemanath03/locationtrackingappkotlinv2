@@ -1,7 +1,6 @@
 package com.example.locationtrackingappv2.presentation
 
 
-import TrackingMainScreen
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -12,6 +11,7 @@ import com.example.locationtrackingappv2.data.service.LocationService
 import com.example.locationtrackingappv2.presentation.viewmodel.TrackingViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import android.util.Log
+import com.example.locationtrackingappv2.presentation.ui.TrackingMainScreen
 
 
 @AndroidEntryPoint

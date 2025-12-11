@@ -131,6 +131,7 @@ class TrackingViewModel @Inject constructor(
 
     fun stopMeter() {
         _meterRunning.value = false
+        resetAll()
     }
 
     private fun updateFare(stats: LocationStats) {
@@ -165,6 +166,17 @@ class TrackingViewModel @Inject constructor(
         _estimatedFare.value = null
         _remainingDistance.value = null
     }
+    private fun resetAll() {
+
+        // Reset meter & stats
+        _points.value = emptyList()
+        _stats.value = null
+        _remainingDistance.value = null
+
+        // Reuse existing destination cleaner
+        clearDestination()
+    }
+
 
     fun onPlaceSelected(s: PlaceSuggestion, ctx: Context) {
         viewModelScope.launch {

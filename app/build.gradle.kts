@@ -92,6 +92,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    implementation("androidx.compose.foundation:foundation-layout:1.6.1")
+
 
     // ------------------------------------------------------------
     // Google Maps / Places / Location

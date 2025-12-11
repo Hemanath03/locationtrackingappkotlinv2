@@ -12,5 +12,6 @@ data class LocationStats(
     val last: LocationPoint,
     val totalDistanceMeters: Double,
     val instantSpeedMps: Double,
-    val averageSpeedMps: Double
+    val averageSpeedMps: Double,
+    val durationSeconds: Int
 )
