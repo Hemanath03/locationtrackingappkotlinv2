@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.locationtrackingappv2.R
@@ -105,6 +106,7 @@ class LocationService : Service() {
             result.locations.forEach { loc ->
                 val point = LocationPoint(lat = loc.latitude, lng = loc.longitude, timestamp = loc.time)
                 // publish without blocking
+                //Log.i("LocationService", "Publishing location: $point ${loc.speed}");
                 locationRepository.publishLocationNonBlocking(point)
             }
         }

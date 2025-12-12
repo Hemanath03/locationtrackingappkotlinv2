@@ -1,33 +1,23 @@
-// ==========================
-// TrackingViewModel.kt (Full Updated with Snap-to-Road + FullRoute + RemainingRoute)
-// ==========================
 package com.example.locationtrackingappv2.presentation.viewmodel
 
-import android.annotation.SuppressLint
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.locationtrackingappv2.domain.entity.LocationPoint
 import com.example.locationtrackingappv2.domain.entity.LocationStats
+import com.example.locationtrackingappv2.domain.entity.PlaceSuggestion
 import com.example.locationtrackingappv2.domain.repository.DirectionsRepository
 import com.example.locationtrackingappv2.domain.repository.GoogleMapsRepository
 import com.example.locationtrackingappv2.domain.usecase.ObserveLocationStatsUseCase
 import com.example.locationtrackingappv2.domain.usecase.ObserveLocationUseCase
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
+import com.example.locationtrackingappv2.data.repository.SnapToRoadRepository
 import com.google.android.gms.maps.model.LatLng
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
-import com.example.locationtrackingappv2.data.repository.SnapToRoadRepository
-import com.example.locationtrackingappv2.domain.entity.PlaceSuggestion
-import dagger.hilt.android.lifecycle.HiltViewModel
 
 @HiltViewModel
 class TrackingViewModel @Inject constructor(
@@ -38,45 +28,37 @@ class TrackingViewModel @Inject constructor(
     private val snapRepo: SnapToRoadRepository
 ) : ViewModel() {
 
-    private val TAG = "TrackingViewModel"
+    // ************************************
+    // LIVE UI STATE
+    // ************************************
 
-    // Add this at top of ViewModel:
     private val _fare = MutableStateFlow(0.0)
     val fare = _fare.asStateFlow()
 
     private val _estimatedFare = MutableStateFlow<Double?>(null)
     val estimatedFare = _estimatedFare.asStateFlow()
 
-
-    // Live snapped GPS location
     private val _currentLocation = MutableStateFlow<LocationPoint?>(null)
     val currentLocation = _currentLocation.asStateFlow()
 
-    // Driver path when meter running
     private val _points = MutableStateFlow<List<LocationPoint>>(emptyList())
     val points = _points.asStateFlow()
 
-    // Stats
     private val _stats = MutableStateFlow<LocationStats?>(null)
     val stats = _stats.asStateFlow()
 
-    // Meter
     private val _meterRunning = MutableStateFlow(false)
     val meterRunning = _meterRunning.asStateFlow()
 
-
-    // Destination
     private val _destination = MutableStateFlow<LocationPoint?>(null)
     val destination = _destination.asStateFlow()
 
     private val _destSuggestions = MutableStateFlow<List<PlaceSuggestion>>(emptyList())
     val destSuggestions = _destSuggestions.asStateFlow()
 
-    // Full route (always intact)
     private val _fullRoute = MutableStateFlow<List<LatLng>>(emptyList())
     val fullRoute = _fullRoute.asStateFlow()
 
-    // Remaining route (trimmed visually)
     private val _remainingRoute = MutableStateFlow<List<LatLng>>(emptyList())
     val remainingRoute = _remainingRoute.asStateFlow()
 
@@ -89,24 +71,21 @@ class TrackingViewModel @Inject constructor(
     private val _remainingDistance = MutableStateFlow<Double?>(null)
     val remainingDistance = _remainingDistance.asStateFlow()
 
-
+    // ************************************
+    // INIT: start collecting GPS + stats
+    // ************************************
     init {
-        // GPS updates
+        // GPS updates from service
         viewModelScope.launch {
-            observeLocationUseCase().collect { rawLp ->
-
-                // Snap to road
-                val snapped = snapRepo.snap(rawLp)
+            observeLocationUseCase().collect { raw ->
+                val snapped = snapRepo.snap(raw)
                 _currentLocation.value = snapped
 
                 if (_meterRunning.value) {
                     _points.value = _points.value + snapped
                 }
 
-                // Trim route visually
                 trimRemainingRouteToCurrentPosition(LatLng(snapped.lat, snapped.lng))
-
-                // Update remaining distance
                 updateRemainingDistance(snapped)
             }
         }
@@ -120,18 +99,21 @@ class TrackingViewModel @Inject constructor(
         }
     }
 
-    // =============================
-    // Meter
-    // =============================
+    // ************************************
+    // METER CONTROL
+    // ************************************
+
     fun startMeter() {
         _points.value = emptyList()
+        _stats.value = null
+        _remainingDistance.value = null
         _fare.value = 0.0
         _meterRunning.value = true
     }
 
     fun stopMeter() {
         _meterRunning.value = false
-        resetAll()
+        resetAllExceptFare()
     }
 
     private fun updateFare(stats: LocationStats) {
@@ -141,18 +123,20 @@ class TrackingViewModel @Inject constructor(
         _fare.value = km * rate
     }
 
-    // =============================
-    // Places autocomplete
-    // =============================
+    // ************************************
+    // DESTINATION SEARCH + SELECTION
+    // ************************************
 
-    fun searchPlaces(q: String) {
-        if (q.isBlank()) {
+    fun searchPlaces(query: String) {
+        if (query.isBlank()) {
             _destSuggestions.value = emptyList()
             return
         }
+
         viewModelScope.launch(Dispatchers.IO) {
-            val preds = placesRepo.getPlaceSuggestions(q)
-            _destSuggestions.value = preds.map { PlaceSuggestion(it.placeId, it.description) }
+            val preds = placesRepo.getPlaceSuggestions(query)
+            _destSuggestions.value =
+                preds.map { PlaceSuggestion(it.placeId, it.description) }
         }
     }
 
@@ -166,63 +150,39 @@ class TrackingViewModel @Inject constructor(
         _estimatedFare.value = null
         _remainingDistance.value = null
     }
-    private fun resetAll() {
-
-        // Reset meter & stats
-        _points.value = emptyList()
-        _stats.value = null
-        _remainingDistance.value = null
-
-        // Reuse existing destination cleaner
-        clearDestination()
-    }
-
 
     fun onPlaceSelected(s: PlaceSuggestion, ctx: Context) {
         viewModelScope.launch {
             val coords = placesRepo.getPlaceCoordinates(s.placeId)
             _destination.value = coords
 
-            val origin = _currentLocation.value ?: getImmediateOriginFallback(ctx)
-            if (origin != null) loadRoute(origin, coords)
+            val origin = _currentLocation.value
+            if (origin != null) {
+                loadRoute(origin, coords)
+            }
+            // Else → NO FusedLocationProvider fallback
+            // UI waits for first GPS fix before allowing selection
         }
     }
 
-    @SuppressLint("MissingPermission")
-    private suspend fun getImmediateOriginFallback(ctx: Context): LocationPoint? {
-        return try {
-            val fused = LocationServices.getFusedLocationProviderClient(ctx)
+    // ************************************
+    // ROUTE LOADING + PROCESSING
+    // ************************************
 
-            val fresh = fused.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-            if (fresh != null) return LocationPoint(fresh.latitude, fresh.longitude, System.currentTimeMillis())
-
-            val last = fused.lastLocation.await()
-            if (last != null) return LocationPoint(last.latitude, last.longitude, System.currentTimeMillis())
-
-            null
-        } catch (e: Exception) { null }
-    }
-
-    // =============================
-    // Route loading
-    // =============================
     fun loadRoute(origin: LocationPoint, dest: LocationPoint) {
         viewModelScope.launch(Dispatchers.IO) {
-            val (poly, distance, duration) = directionsRepository.getRoutePoints(origin, dest)
+            val (poly, dist, dur) = directionsRepository.getRoutePoints(origin, dest)
 
             if (poly.isNotEmpty()) {
-                _fullRoute.value = poly.toList()       // store full
-                _remainingRoute.value = poly.toList()  // initial remaining
-                _routeDistance.value = distance
-                _routeDuration.value = duration
-                _estimatedFare.value = (distance / 1000.0) * 3.0
+                _fullRoute.value = poly
+                _remainingRoute.value = poly
+                _routeDistance.value = dist
+                _routeDuration.value = dur
+                _estimatedFare.value = (dist / 1000.0) * 3.0
             }
         }
     }
 
-    // =============================
-    // Trim remaining route
-    // =============================
     private fun trimRemainingRouteToCurrentPosition(current: LatLng, threshold: Float = 30f) {
         val route = _remainingRoute.value
         if (route.isEmpty()) return
@@ -246,36 +206,31 @@ class TrackingViewModel @Inject constructor(
         if (minDist > threshold) return
 
         val startIndex = (closestIndex - 1).coerceAtLeast(0)
-
         if (startIndex >= route.size - 1) {
             _remainingRoute.value = emptyList()
             _remainingDistance.value = 0.0
             return
         }
 
-        val trimmed = route.drop(startIndex)
-        _remainingRoute.value = trimmed
+        _remainingRoute.value = route.drop(startIndex)
     }
 
-    // =============================
-    // Remaining distance
-    // =============================
-    private fun updateRemainingDistance(current: LocationPoint?) {
-        current ?: return
+    private fun updateRemainingDistance(cur: LocationPoint?) {
+        cur ?: return
         val route = _remainingRoute.value
         if (route.isEmpty()) {
             _remainingDistance.value = null
             return
         }
 
-        val cur = LatLng(current.lat, current.lng)
         var closest = 0
         var min = Float.MAX_VALUE
         val f = FloatArray(1)
+        val here = LatLng(cur.lat, cur.lng)
 
         for (i in route.indices) {
             android.location.Location.distanceBetween(
-                cur.latitude, cur.longitude,
+                here.latitude, here.longitude,
                 route[i].latitude, route[i].longitude,
                 f
             )
@@ -289,7 +244,7 @@ class TrackingViewModel @Inject constructor(
         for (i in closest until route.size - 1) {
             android.location.Location.distanceBetween(
                 route[i].latitude, route[i].longitude,
-                route[i+1].latitude, route[i+1].longitude,
+                route[i + 1].latitude, route[i + 1].longitude,
                 f
             )
             total += f[0]
@@ -297,5 +252,11 @@ class TrackingViewModel @Inject constructor(
 
         _remainingDistance.value = total
     }
-}
 
+    private fun resetAllExceptFare() {
+        _points.value = emptyList()
+        _stats.value = null
+        _remainingDistance.value = null
+        clearDestination()
+    }
+}
