@@ -7,9 +7,10 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:name=".MyApplication"
+        android:name=".app.MyApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -19,22 +20,21 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Locationtrackingappv2">
         <activity
-            android:name=".MainActivity"
+            android:name=".presentation.TrackingActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Locationtrackingappv2">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyDOjbYNl-3m0fgEdcVpzDse-a3mLmR8uio" />
+            android:value="AIzaSyDVGX2ePBPUqcC3Zx8DojguBWC2LdglKZc" />
 
         <service
-            android:name=".services.LocationService"
+            android:name=".data.service.LocationService"
             android:foregroundServiceType="location"
             android:exported="false" />
     </application>

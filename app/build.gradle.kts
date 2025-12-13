@@ -1,9 +1,18 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt.android)
     kotlin("kapt")
+}
+
+val localProps = Properties()
+val localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localProps.load(FileInputStream(localPropsFile))
 }
 
 android {
@@ -18,6 +27,20 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // ------------------------------------------------------------
+        // BuildConfig API Keys (Fixes BuildConfig unresolved error)
+        // ------------------------------------------------------------
+        buildConfigField(
+            "String",
+            "MAPS_API_KEY",
+            "\"${localProps["MAPS_API_KEY"] ?: ""}\""
+        )
+        buildConfigField(
+            "String",
+            "ROUTES_API_KEY",
+            "\"${localProps["ROUTES_API_KEY"] ?: ""}\""
+        )
     }
 
     buildTypes {
@@ -29,6 +52,8 @@ android {
             )
         }
     }
+
+    // Java/Kotlin settings
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -36,20 +61,26 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
 dependencies {
 
-    // --- Core Android & Lifecycle ---
+    // ------------------------------------------------------------
+    // Android Core
+    // ------------------------------------------------------------
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation("androidx.activity:activity-ktx:1.11.0")
     implementation("com.google.android.material:material:1.12.0")
 
-    // --- Compose UI ---
+    // ---------- --------------------------------------------------
+    // Compose UI
+    // ------------------------------------------------------------
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -61,26 +92,50 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    implementation("androidx.compose.foundation:foundation-layout:1.6.1")
 
-    // --- Google Location & Maps ---
+
+    // ------------------------------------------------------------
+    // Google Maps / Places / Location
+    // ------------------------------------------------------------
     implementation(libs.play.services.location)
     implementation("com.google.android.gms:play-services-maps:18.1.0")
+    implementation("com.google.android.libraries.places:places:3.5.0")
+    implementation("com.google.maps.android:android-maps-utils:3.4.0")
+    implementation("com.google.maps.android:maps-compose:2.14.0")
 
-    // --- Hilt (Dependency Injection) ---
+    // ------------------------------------------------------------
+    // Networking: Retrofit + Moshi + OkHttp
+    // ------------------------------------------------------------
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+
+    // ------------------------------------------------------------
+    // Coroutines
+    // ------------------------------------------------------------
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+
+    // ------------------------------------------------------------
+    // Lifecycle (ViewModel scope)
+    // ------------------------------------------------------------
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+
+    // ------------------------------------------------------------
+    // Hilt Dependency Injection
+    // ------------------------------------------------------------
     implementation("com.google.dagger:hilt-android:2.51.1")
     kapt("com.google.dagger:hilt-compiler:2.51.1")
 
-    // --- Coroutines (for background work) ---
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
-    implementation("com.google.maps.android:android-maps-utils:3.4.0")
-
-
-
-    // --- Testing ---
+    // ------------------------------------------------------------
+    // Testing
+    // ------------------------------------------------------------
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
